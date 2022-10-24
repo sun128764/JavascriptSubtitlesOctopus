@@ -1,11 +1,49 @@
 "use strict";
+//https://github.com/CezaryDanielNowak/CrossOriginWorker
+const getCrossOriginWorkerURL = (originalWorkerUrl, _options = {}) => {
+    const options = {
+        skipSameOrigin: true,
+        useBlob: true,
 
-import getCrossOriginWorkerURL from "crossoriginworker";
+        ..._options,
+    };
 
-async function createWorker(url) {
-    const workerURL = await getCrossOriginWorkerURL(url);
-    return new Worker(workerURL);
-}
+    if (
+        !originalWorkerUrl.includes("://") ||
+        originalWorkerUrl.includes(window.location.origin)
+    ) {
+        // The same origin - Worker will run fine
+        return Promise.resolve(originalWorkerUrl);
+    }
+
+    return new Promise((resolve, reject) =>
+        fetch(originalWorkerUrl)
+            .then((res) => res.text())
+            .then((codeString) => {
+                let workerPath = new URL(originalWorkerUrl).href.split("/");
+                workerPath.pop();
+
+                const importScriptsFix = `const _importScripts = importScripts;
+    const _fixImports = (url) => new URL(url, '${
+        workerPath.join("/") + "/"
+    }').href;
+    importScripts = (...urls) => _importScripts(...urls.map(_fixImports));`;
+
+                let finalURL =
+                    `data:${type},` +
+                    encodeURIComponent(importScriptsFix + codeString);
+
+                if (options.useBlob) {
+                    finalURL = URL.createObjectURL(
+                        new Blob([`importScripts("${finalURL}")`], { type })
+                    );
+                }
+
+                resolve(finalURL);
+            })
+            .catch(reject)
+    );
+};
 
 var SubtitlesOctopus = function (options) {
     var supportsWebAssembly = false;
@@ -111,7 +149,7 @@ var SubtitlesOctopus = function (options) {
         }
         // Worker
         if (!self.worker) {
-            self.worker = createWorker(self.workerUrl);
+            self.worker = new Worker(getCrossOriginWorkerURL(self.workerUrl));
             self.worker.addEventListener("message", self.onWorkerMessage);
             self.worker.addEventListener("error", self.workerError);
         }
