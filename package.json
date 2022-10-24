@@ -26,5 +26,8 @@
   "bugs": {
     "url": "https://github.com/libass/JavascriptSubtitlesOctopus/issues"
   },
-  "homepage": "https://libass.github.io/JavascriptSubtitlesOctopus/"
+  "homepage": "https://libass.github.io/JavascriptSubtitlesOctopus/",
+  "dependencies": {
+    "crossoriginworker": "^1.1.0"
+  }
 }

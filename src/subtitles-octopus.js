@@ -1,4 +1,12 @@
 "use strict";
+
+import getCrossOriginWorkerURL from "crossoriginworker";
+
+async function createWorker(url) {
+    const workerURL = await getCrossOriginWorkerURL(url);
+    return new Worker(workerURL);
+}
+
 var SubtitlesOctopus = function (options) {
     var supportsWebAssembly = false;
     try {
@@ -103,7 +111,7 @@ var SubtitlesOctopus = function (options) {
         }
         // Worker
         if (!self.worker) {
-            self.worker = new Worker(self.workerUrl);
+            self.worker = createWorker(self.workerUrl);
             self.worker.addEventListener("message", self.onWorkerMessage);
             self.worker.addEventListener("error", self.workerError);
         }
