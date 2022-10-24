@@ -2,19 +2,27 @@
 var SubtitlesOctopus = function (options) {
     var supportsWebAssembly = false;
     try {
-        if (typeof WebAssembly === "object"
-            && typeof WebAssembly.instantiate === "function") {
-            const module = new WebAssembly.Module(Uint8Array.of(0x0, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00));
+        if (
+            typeof WebAssembly === "object" &&
+            typeof WebAssembly.instantiate === "function"
+        ) {
+            const module = new WebAssembly.Module(
+                Uint8Array.of(0x0, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00)
+            );
             if (module instanceof WebAssembly.Module)
-                supportsWebAssembly = (new WebAssembly.Instance(module) instanceof WebAssembly.Instance);
+                supportsWebAssembly =
+                    new WebAssembly.Instance(module) instanceof
+                    WebAssembly.Instance;
         }
-    } catch (e) {
-    }
-    console.log("WebAssembly support detected: " + (supportsWebAssembly ? "yes" : "no"));
+    } catch (e) {}
+    console.log(
+        "WebAssembly support detected: " + (supportsWebAssembly ? "yes" : "no")
+    );
 
     var self = this;
     self.canvas = options.canvas; // HTML canvas element (optional if video specified)
-    self.renderMode = options.renderMode || (options.lossyRender ? 'lossy' : 'wasm-blend');
+    self.renderMode =
+        options.renderMode || (options.lossyRender ? "lossy" : "wasm-blend");
     self.libassMemoryLimit = options.libassMemoryLimit || 0;
     self.libassGlyphLimit = options.libassGlyphLimit || 0;
     self.targetFps = options.targetFps || 24;
@@ -29,9 +37,10 @@ var SubtitlesOctopus = function (options) {
     self.availableFonts = options.availableFonts || []; // Object with all available fonts (optional). Key is font name in lower case, value is link: {"arial": "/font1.ttf"}
     self.onReadyEvent = options.onReady; // Function called when SubtitlesOctopus is ready (optional)
     if (supportsWebAssembly) {
-        self.workerUrl = options.workerUrl || 'subtitles-octopus-worker.js'; // Link to WebAssembly worker
+        self.workerUrl = options.workerUrl || "subtitles-octopus-worker.js"; // Link to WebAssembly worker
     } else {
-        self.workerUrl = options.legacyWorkerUrl || 'subtitles-octopus-worker-legacy.js'; // Link to legacy worker
+        self.workerUrl =
+            options.legacyWorkerUrl || "subtitles-octopus-worker-legacy.js"; // Link to legacy worker
     }
     self.subUrl = options.subUrl; // Link to sub file (optional if subContent specified)
     self.subContent = options.subContent || null; // Sub content (optional if subUrl specified)
@@ -44,20 +53,22 @@ var SubtitlesOctopus = function (options) {
 
     self.hasAlphaBug = false;
 
-    (function() {
-        if (typeof ImageData.prototype.constructor === 'function') {
+    (function () {
+        if (typeof ImageData.prototype.constructor === "function") {
             try {
                 // try actually calling ImageData, as on some browsers it's reported
                 // as existing but calling it errors out as "TypeError: Illegal constructor"
                 new window.ImageData(new Uint8ClampedArray([0, 0, 0, 0]), 1, 1);
                 return;
             } catch (e) {
-                console.log("detected that ImageData is not constructable despite browser saying so");
+                console.log(
+                    "detected that ImageData is not constructable despite browser saying so"
+                );
             }
         }
 
-        var canvas = document.createElement('canvas');
-        var ctx = canvas.getContext('2d');
+        var canvas = document.createElement("canvas");
+        var ctx = canvas.getContext("2d");
 
         window.ImageData = function () {
             var i = 0;
@@ -70,38 +81,38 @@ var SubtitlesOctopus = function (options) {
             var imageData = ctx.createImageData(width, height);
             if (data) imageData.data.set(data);
             return imageData;
-        }
+        };
     })();
 
     self.workerError = function (error) {
-        console.error('Worker error: ', error);
+        console.error("Worker error: ", error);
         if (self.onErrorEvent) {
             self.onErrorEvent(error);
         }
         if (!self.debug) {
             self.dispose();
-            throw new Error('Worker error: ' + error);
+            throw new Error("Worker error: " + error);
         }
     };
 
     // Not tested for repeated usage yet
     self.init = function () {
         if (!window.Worker) {
-            self.workerError('worker not supported');
+            self.workerError("worker not supported");
             return;
         }
         // Worker
         if (!self.worker) {
             self.worker = new Worker(self.workerUrl);
-            self.worker.addEventListener('message', self.onWorkerMessage);
-            self.worker.addEventListener('error', self.workerError);
+            self.worker.addEventListener("message", self.onWorkerMessage);
+            self.worker.addEventListener("error", self.workerError);
         }
         self.workerActive = false;
         self.createCanvas();
         self.setVideo(options.video);
         self.setSubUrl(options.subUrl);
         self.worker.postMessage({
-            target: 'worker-init',
+            target: "worker-init",
             width: self.canvas.width,
             height: self.canvas.height,
             URL: document.URL,
@@ -116,7 +127,7 @@ var SubtitlesOctopus = function (options) {
             targetFps: self.targetFps,
             libassMemoryLimit: self.libassMemoryLimit,
             libassGlyphLimit: self.libassGlyphLimit,
-            dropAllAnimations: self.dropAllAnimations
+            dropAllAnimations: self.dropAllAnimations,
         });
     };
 
@@ -124,30 +135,33 @@ var SubtitlesOctopus = function (options) {
         if (!self.canvas) {
             if (self.video) {
                 self.isOurCanvas = true;
-                self.canvas = document.createElement('canvas');
-                self.canvas.className = 'libassjs-canvas';
-                self.canvas.style.display = 'none';
+                self.canvas = document.createElement("canvas");
+                self.canvas.className = "libassjs-canvas";
+                self.canvas.style.display = "none";
 
-                self.canvasParent = document.createElement('div');
-                self.canvasParent.className = 'libassjs-canvas-parent';
+                self.canvasParent = document.createElement("div");
+                self.canvasParent.className = "libassjs-canvas-parent";
                 self.canvasParent.appendChild(self.canvas);
 
                 if (self.video.nextSibling) {
-                    self.video.parentNode.insertBefore(self.canvasParent, self.video.nextSibling);
-                }
-                else {
+                    self.video.parentNode.insertBefore(
+                        self.canvasParent,
+                        self.video.nextSibling
+                    );
+                } else {
                     self.video.parentNode.appendChild(self.canvasParent);
                 }
-            }
-            else {
+            } else {
                 if (!self.canvas) {
-                    self.workerError('Don\'t know where to render: you should give video or canvas in options.');
+                    self.workerError(
+                        "Don't know where to render: you should give video or canvas in options."
+                    );
                 }
             }
         }
-        self.ctx = self.canvas.getContext('2d');
-        self.bufferCanvas = document.createElement('canvas');
-        self.bufferCanvasCtx = self.bufferCanvas.getContext('2d');
+        self.ctx = self.canvas.getContext("2d");
+        self.bufferCanvas = document.createElement("canvas");
+        self.bufferCanvasCtx = self.bufferCanvas.getContext("2d");
 
         // test for alpha bug, where e.g. WebKit can render a transparent pixel
         // (with alpha == 0) as non-black which then leads to visual artifacts
@@ -163,13 +177,15 @@ var SubtitlesOctopus = function (options) {
         var postPut = self.ctx.getImageData(0, 0, 1, 1).data;
         self.hasAlphaBug = prePut[1] != postPut[1];
         if (self.hasAlphaBug) {
-            console.log("Detected a browser having issue with transparent pixels, applying workaround");
+            console.log(
+                "Detected a browser having issue with transparent pixels, applying workaround"
+            );
         }
     };
 
     function onTimeUpdate() {
         self.setCurrentTime(self.video.currentTime + self.timeOffset);
-    };
+    }
 
     function onPlaying() {
         self.setIsPaused(false, self.video.currentTime + self.timeOffset);
@@ -180,11 +196,11 @@ var SubtitlesOctopus = function (options) {
     }
 
     function onSeeking() {
-        self.video.removeEventListener('timeupdate', onTimeUpdate, false);
+        self.video.removeEventListener("timeupdate", onTimeUpdate, false);
     }
 
     function onSeeked() {
-        self.video.addEventListener('timeupdate', onTimeUpdate, false);
+        self.video.addEventListener("timeupdate", onTimeUpdate, false);
 
         var currentTime = self.video.currentTime + self.timeOffset;
 
@@ -207,18 +223,34 @@ var SubtitlesOctopus = function (options) {
     self.setVideo = function (video) {
         self.video = video;
         if (self.video) {
-            self.video.addEventListener('timeupdate', onTimeUpdate, false);
-            self.video.addEventListener('playing', onPlaying, false);
-            self.video.addEventListener('pause', onPause, false);
-            self.video.addEventListener('seeking', onSeeking, false);
-            self.video.addEventListener('seeked', onSeeked, false);
-            self.video.addEventListener('ratechange', onRateChange, false);
-            self.video.addEventListener('waiting', onWaiting, false);
+            self.video.addEventListener("timeupdate", onTimeUpdate, false);
+            self.video.addEventListener("playing", onPlaying, false);
+            self.video.addEventListener("pause", onPause, false);
+            self.video.addEventListener("seeking", onSeeking, false);
+            self.video.addEventListener("seeked", onSeeked, false);
+            self.video.addEventListener("ratechange", onRateChange, false);
+            self.video.addEventListener("waiting", onWaiting, false);
 
-            document.addEventListener("fullscreenchange", self.resizeWithTimeout, false);
-            document.addEventListener("mozfullscreenchange", self.resizeWithTimeout, false);
-            document.addEventListener("webkitfullscreenchange", self.resizeWithTimeout, false);
-            document.addEventListener("msfullscreenchange", self.resizeWithTimeout, false);
+            document.addEventListener(
+                "fullscreenchange",
+                self.resizeWithTimeout,
+                false
+            );
+            document.addEventListener(
+                "mozfullscreenchange",
+                self.resizeWithTimeout,
+                false
+            );
+            document.addEventListener(
+                "webkitfullscreenchange",
+                self.resizeWithTimeout,
+                false
+            );
+            document.addEventListener(
+                "msfullscreenchange",
+                self.resizeWithTimeout,
+                false
+            );
             window.addEventListener("resize", self.resizeWithTimeout, false);
 
             // Support Element Resize Observer
@@ -229,19 +261,25 @@ var SubtitlesOctopus = function (options) {
 
             if (self.video.videoWidth > 0) {
                 self.resize();
-            }
-            else {
-                self.video.addEventListener('loadedmetadata', onLoadedMetadata, false);
+            } else {
+                self.video.addEventListener(
+                    "loadedmetadata",
+                    onLoadedMetadata,
+                    false
+                );
             }
         }
     };
 
     self.getVideoPosition = function () {
         var videoRatio = self.video.videoWidth / self.video.videoHeight;
-        var width = self.video.offsetWidth, height = self.video.offsetHeight;
+        var width = self.video.offsetWidth,
+            height = self.video.offsetHeight;
         var elementRatio = width / height;
-        var realWidth = width, realHeight = height;
-        if (elementRatio > videoRatio) realWidth = Math.floor(height * videoRatio);
+        var realWidth = width,
+            realHeight = height;
+        if (elementRatio > videoRatio)
+            realWidth = Math.floor(height * videoRatio);
         else realHeight = Math.floor(width / videoRatio);
 
         var x = (width - realWidth) / 2;
@@ -251,7 +289,7 @@ var SubtitlesOctopus = function (options) {
             width: realWidth,
             height: realHeight,
             x: x,
-            y: y
+            y: y,
         };
     };
 
@@ -271,7 +309,7 @@ var SubtitlesOctopus = function (options) {
             var imageBuffer = new Uint8ClampedArray(image.buffer);
             if (self.hasAlphaBug) {
                 for (var j = 3; j < imageBuffer.length; j = j + 4) {
-                    imageBuffer[j] = (imageBuffer[j] >= 1) ? imageBuffer[j] : 1;
+                    imageBuffer[j] = imageBuffer[j] >= 1 ? imageBuffer[j] : 1;
                 }
             }
             var imageData = new ImageData(imageBuffer, image.w, image.h);
@@ -281,10 +319,25 @@ var SubtitlesOctopus = function (options) {
         if (self.debug) {
             var drawTime = Math.round(performance.now() - beforeDrawTime);
             var blendTime = data.blendTime;
-            if (typeof blendTime !== 'undefined') {
-                console.log('render: ' + Math.round(data.spentTime - blendTime) + ' ms, blend: ' + Math.round(blendTime) + ' ms, draw: ' + drawTime + ' ms; TOTAL=' + Math.round(data.spentTime + drawTime) + ' ms');
+            if (typeof blendTime !== "undefined") {
+                console.log(
+                    "render: " +
+                        Math.round(data.spentTime - blendTime) +
+                        " ms, blend: " +
+                        Math.round(blendTime) +
+                        " ms, draw: " +
+                        drawTime +
+                        " ms; TOTAL=" +
+                        Math.round(data.spentTime + drawTime) +
+                        " ms"
+                );
             } else {
-                console.log(Math.round(data.spentTime) + ' ms (+ ' + drawTime + ' ms draw)');
+                console.log(
+                    Math.round(data.spentTime) +
+                        " ms (+ " +
+                        drawTime +
+                        " ms draw)"
+                );
             }
             self.renderStart = performance.now();
         }
@@ -304,7 +357,16 @@ var SubtitlesOctopus = function (options) {
         }
         if (self.debug) {
             var drawTime = Math.round(performance.now() - beforeDrawTime);
-            console.log(data.bitmaps.length + ' bitmaps, libass: ' + Math.round(data.libassTime) + 'ms, decode: ' + Math.round(data.decodeTime) + 'ms, draw: ' + drawTime + 'ms');
+            console.log(
+                data.bitmaps.length +
+                    " bitmaps, libass: " +
+                    Math.round(data.libassTime) +
+                    "ms, decode: " +
+                    Math.round(data.decodeTime) +
+                    "ms, draw: " +
+                    drawTime +
+                    "ms"
+            );
             self.renderStart = performance.now();
         }
     }
@@ -321,49 +383,52 @@ var SubtitlesOctopus = function (options) {
         }
         var data = event.data;
         switch (data.target) {
-            case 'stdout': {
+            case "stdout": {
                 console.log(data.content);
                 break;
             }
-            case 'console-log': {
+            case "console-log": {
                 console.log.apply(console, JSON.parse(data.content));
                 break;
             }
-            case 'console-debug': {
+            case "console-debug": {
                 console.debug.apply(console, JSON.parse(data.content));
                 break;
             }
-            case 'console-info': {
+            case "console-info": {
                 console.info.apply(console, JSON.parse(data.content));
                 break;
             }
-            case 'console-warn': {
+            case "console-warn": {
                 console.warn.apply(console, JSON.parse(data.content));
                 break;
             }
-            case 'console-error': {
+            case "console-error": {
                 console.error.apply(console, JSON.parse(data.content));
                 break;
             }
-            case 'stderr': {
+            case "stderr": {
                 console.error(data.content);
                 break;
             }
-            case 'window': {
+            case "window": {
                 window[data.method]();
                 break;
             }
-            case 'canvas': {
+            case "canvas": {
                 switch (data.op) {
-                    case 'getContext': {
-                        self.ctx = self.canvas.getContext(data.type, data.attributes);
+                    case "getContext": {
+                        self.ctx = self.canvas.getContext(
+                            data.type,
+                            data.attributes
+                        );
                         break;
                     }
-                    case 'resize': {
+                    case "resize": {
                         self.resize(data.width, data.height);
                         break;
                     }
-                    case 'renderCanvas': {
+                    case "renderCanvas": {
                         if (self.lastRenderTime < data.time) {
                             self.lastRenderTime = data.time;
                             self.renderFramesData = data;
@@ -371,7 +436,7 @@ var SubtitlesOctopus = function (options) {
                         }
                         break;
                     }
-                    case 'renderFastCanvas': {
+                    case "renderFastCanvas": {
                         if (self.lastRenderTime < data.time) {
                             self.lastRenderTime = data.time;
                             self.renderFramesData = data;
@@ -379,48 +444,48 @@ var SubtitlesOctopus = function (options) {
                         }
                         break;
                     }
-                    case 'setObjectProperty': {
+                    case "setObjectProperty": {
                         self.canvas[data.object][data.property] = data.value;
                         break;
                     }
                     default:
-                        throw 'eh?';
+                        throw "eh?";
                 }
                 break;
             }
-            case 'tick': {
+            case "tick": {
                 self.frameId = data.id;
                 self.worker.postMessage({
-                    target: 'tock',
-                    id: self.frameId
+                    target: "tock",
+                    id: self.frameId,
                 });
                 break;
             }
-            case 'custom': {
-                if (self['onCustomMessage']) {
-                    self['onCustomMessage'](event);
+            case "custom": {
+                if (self["onCustomMessage"]) {
+                    self["onCustomMessage"](event);
                 } else {
-                    throw 'Custom message received but client onCustomMessage not implemented.';
+                    throw "Custom message received but client onCustomMessage not implemented.";
                 }
                 break;
             }
-            case 'setimmediate': {
+            case "setimmediate": {
                 self.worker.postMessage({
-                    target: 'setimmediate'
+                    target: "setimmediate",
                 });
                 break;
             }
-            case 'get-events': {
+            case "get-events": {
                 break;
             }
-            case 'get-styles': {
+            case "get-styles": {
                 break;
             }
-            case 'ready': {
+            case "ready": {
                 break;
             }
             default:
-                throw 'what? ' + data.target;
+                throw "what? " + data.target;
         }
     };
 
@@ -445,7 +510,7 @@ var SubtitlesOctopus = function (options) {
             height = newH;
         }
 
-        return {'width': width, 'height': height};
+        return { width: width, height: height };
     }
 
     self.resize = function (width, height, top, left) {
@@ -454,45 +519,51 @@ var SubtitlesOctopus = function (options) {
         left = left || 0;
         if ((!width || !height) && self.video) {
             videoSize = self.getVideoPosition();
-            var newSize = _computeCanvasSize(videoSize.width * self.pixelRatio, videoSize.height * self.pixelRatio);
+            var newSize = _computeCanvasSize(
+                videoSize.width * self.pixelRatio,
+                videoSize.height * self.pixelRatio
+            );
             width = newSize.width;
             height = newSize.height;
-            var offset = self.canvasParent.getBoundingClientRect().top - self.video.getBoundingClientRect().top;
+            var offset =
+                self.canvasParent.getBoundingClientRect().top -
+                self.video.getBoundingClientRect().top;
             top = videoSize.y - offset;
             left = videoSize.x;
         }
         if (!width || !height) {
             if (!self.video) {
-                console.error('width or height is 0. You should specify width & height for resize.');
+                console.error(
+                    "width or height is 0. You should specify width & height for resize."
+                );
             }
             return;
         }
 
-
         if (
-          self.canvas.width != width ||
-          self.canvas.height != height ||
-          self.canvas.style.top != top ||
-          self.canvas.style.left != left
+            self.canvas.width != width ||
+            self.canvas.height != height ||
+            self.canvas.style.top != top ||
+            self.canvas.style.left != left
         ) {
             self.canvas.width = width;
             self.canvas.height = height;
 
             if (videoSize != null) {
-                self.canvasParent.style.position = 'relative';
-                self.canvas.style.display = 'block';
-                self.canvas.style.position = 'absolute';
-                self.canvas.style.width = videoSize.width + 'px';
-                self.canvas.style.height = videoSize.height + 'px';
-                self.canvas.style.top = top + 'px';
-                self.canvas.style.left = left + 'px';
-                self.canvas.style.pointerEvents = 'none';
+                self.canvasParent.style.position = "relative";
+                self.canvas.style.display = "block";
+                self.canvas.style.position = "absolute";
+                self.canvas.style.width = videoSize.width + "px";
+                self.canvas.style.height = videoSize.height + "px";
+                self.canvas.style.top = top + "px";
+                self.canvas.style.left = left + "px";
+                self.canvas.style.pointerEvents = "none";
             }
 
             self.worker.postMessage({
-                target: 'canvas',
+                target: "canvas",
                 width: self.canvas.width,
-                height: self.canvas.height
+                height: self.canvas.height,
             });
         }
     };
@@ -504,91 +575,110 @@ var SubtitlesOctopus = function (options) {
 
     self.runBenchmark = function () {
         self.worker.postMessage({
-            target: 'runBenchmark'
+            target: "runBenchmark",
         });
     };
 
     self.customMessage = function (data, options) {
         options = options || {};
         self.worker.postMessage({
-            target: 'custom',
+            target: "custom",
             userData: data,
-            preMain: options.preMain
+            preMain: options.preMain,
         });
     };
 
     self.setCurrentTime = function (currentTime) {
         self.worker.postMessage({
-            target: 'video',
-            currentTime: currentTime
+            target: "video",
+            currentTime: currentTime,
         });
     };
 
     self.setTrackByUrl = function (url) {
         self.worker.postMessage({
-            target: 'set-track-by-url',
-            url: url
+            target: "set-track-by-url",
+            url: url,
         });
     };
 
     self.setTrack = function (content) {
         self.worker.postMessage({
-            target: 'set-track',
-            content: content
+            target: "set-track",
+            content: content,
         });
     };
 
     self.freeTrack = function (content) {
         self.worker.postMessage({
-            target: 'free-track'
+            target: "free-track",
         });
     };
-
 
     self.render = self.setCurrentTime;
 
     self.setIsPaused = function (isPaused, currentTime) {
         self.worker.postMessage({
-            target: 'video',
+            target: "video",
             isPaused: isPaused,
-            currentTime: currentTime
+            currentTime: currentTime,
         });
     };
 
     self.setRate = function (rate) {
         self.worker.postMessage({
-            target: 'video',
-            rate: rate
+            target: "video",
+            rate: rate,
         });
     };
 
     self.dispose = function () {
         self.worker.postMessage({
-            target: 'destroy'
+            target: "destroy",
         });
 
         self.worker.terminate();
-        self.worker.removeEventListener('message', self.onWorkerMessage);
-        self.worker.removeEventListener('error', self.workerError);
+        self.worker.removeEventListener("message", self.onWorkerMessage);
+        self.worker.removeEventListener("error", self.workerError);
         self.workerActive = false;
         self.worker = null;
 
         // Remove the canvas element to remove residual subtitles rendered on player
         if (self.video) {
-            self.video.removeEventListener('timeupdate', onTimeUpdate, false);
-            self.video.removeEventListener('playing', onPlaying, false);
-            self.video.removeEventListener('pause', onPause, false);
-            self.video.removeEventListener('seeking', onSeeking, false);
-            self.video.removeEventListener('seeked', onSeeked, false);
-            self.video.removeEventListener('ratechange', onRateChange, false);
-            self.video.removeEventListener('waiting', onWaiting, false);
-            self.video.removeEventListener('loadedmetadata', onLoadedMetadata, false);
+            self.video.removeEventListener("timeupdate", onTimeUpdate, false);
+            self.video.removeEventListener("playing", onPlaying, false);
+            self.video.removeEventListener("pause", onPause, false);
+            self.video.removeEventListener("seeking", onSeeking, false);
+            self.video.removeEventListener("seeked", onSeeked, false);
+            self.video.removeEventListener("ratechange", onRateChange, false);
+            self.video.removeEventListener("waiting", onWaiting, false);
+            self.video.removeEventListener(
+                "loadedmetadata",
+                onLoadedMetadata,
+                false
+            );
 
-            document.removeEventListener('fullscreenchange', self.resizeWithTimeout, false);
-            document.removeEventListener('mozfullscreenchange', self.resizeWithTimeout, false);
-            document.removeEventListener('webkitfullscreenchange', self.resizeWithTimeout, false);
-            document.removeEventListener('msfullscreenchange', self.resizeWithTimeout, false);
-            window.removeEventListener('resize', self.resizeWithTimeout, false);
+            document.removeEventListener(
+                "fullscreenchange",
+                self.resizeWithTimeout,
+                false
+            );
+            document.removeEventListener(
+                "mozfullscreenchange",
+                self.resizeWithTimeout,
+                false
+            );
+            document.removeEventListener(
+                "webkitfullscreenchange",
+                self.resizeWithTimeout,
+                false
+            );
+            document.removeEventListener(
+                "msfullscreenchange",
+                self.resizeWithTimeout,
+                false
+            );
+            window.removeEventListener("resize", self.resizeWithTimeout, false);
 
             self.video.parentNode.removeChild(self.canvasParent);
 
@@ -607,106 +697,114 @@ var SubtitlesOctopus = function (options) {
 
     self.fetchFromWorker = function (workerOptions, onSuccess, onError) {
         try {
-            var target = workerOptions['target']
+            var target = workerOptions["target"];
 
-            var timeout = setTimeout(function() {
-                reject(Error('Error: Timeout while try to fetch ' + target))
-            }, 5000)
+            var timeout = setTimeout(function () {
+                reject(Error("Error: Timeout while try to fetch " + target));
+            }, 5000);
 
             var resolve = function (event) {
                 if (event.data.target == target) {
-                    onSuccess(event.data)
-                    self.worker.removeEventListener('message', resolve)
-                    self.worker.removeEventListener('error', reject)
-                    clearTimeout(timeout)
+                    onSuccess(event.data);
+                    self.worker.removeEventListener("message", resolve);
+                    self.worker.removeEventListener("error", reject);
+                    clearTimeout(timeout);
                 }
-            }
+            };
 
             var reject = function (event) {
-                onError(event)
-                self.worker.removeEventListener('message', resolve)
-                self.worker.removeEventListener('error', reject)
-                clearTimeout(timeout)
-            }
+                onError(event);
+                self.worker.removeEventListener("message", resolve);
+                self.worker.removeEventListener("error", reject);
+                clearTimeout(timeout);
+            };
 
-            self.worker.addEventListener('message', resolve)
-            self.worker.addEventListener('error', reject)
+            self.worker.addEventListener("message", resolve);
+            self.worker.addEventListener("error", reject);
 
-            self.worker.postMessage(workerOptions)
+            self.worker.postMessage(workerOptions);
         } catch (error) {
-            onError(error)
+            onError(error);
         }
-    }
+    };
 
     self.createEvent = function (event) {
         self.worker.postMessage({
-            target: 'create-event',
-            event: event
+            target: "create-event",
+            event: event,
         });
     };
 
     self.getEvents = function (onSuccess, onError) {
-        self.fetchFromWorker({
-            target: 'get-events'
-        }, function(data) {
-            onSuccess(data.events)
-        }, onError);
+        self.fetchFromWorker(
+            {
+                target: "get-events",
+            },
+            function (data) {
+                onSuccess(data.events);
+            },
+            onError
+        );
     };
 
     self.setEvent = function (event, index) {
         self.worker.postMessage({
-            target: 'set-event',
+            target: "set-event",
             event: event,
-            index: index
+            index: index,
         });
     };
 
     self.removeEvent = function (index) {
         self.worker.postMessage({
-            target: 'remove-event',
-            index: index
+            target: "remove-event",
+            index: index,
         });
     };
 
     self.createStyle = function (style) {
         self.worker.postMessage({
-            target: 'create-style',
-            style: style
+            target: "create-style",
+            style: style,
         });
     };
-    
+
     self.getStyles = function (onSuccess, onError) {
-        self.fetchFromWorker({
-            target: 'get-styles'
-        }, function(data) {
-            onSuccess(data.styles)
-        }, onError);
+        self.fetchFromWorker(
+            {
+                target: "get-styles",
+            },
+            function (data) {
+                onSuccess(data.styles);
+            },
+            onError
+        );
     };
 
     self.setStyle = function (style, index) {
         self.worker.postMessage({
-            target: 'set-style',
+            target: "set-style",
             style: style,
-            index: index
+            index: index,
         });
     };
 
     self.removeStyle = function (index) {
         self.worker.postMessage({
-            target: 'remove-style',
-            index: index
+            target: "remove-style",
+            index: index,
         });
     };
 
     self.init();
 };
 
-if (typeof SubtitlesOctopusOnLoad == 'function') {
+if (typeof SubtitlesOctopusOnLoad == "function") {
     SubtitlesOctopusOnLoad();
 }
 
-if (typeof exports !== 'undefined') {
-    if (typeof module !== 'undefined' && module.exports) {
-        exports = module.exports = SubtitlesOctopus
+if (typeof exports !== "undefined") {
+    if (typeof module !== "undefined" && module.exports) {
+        exports = module.exports = SubtitlesOctopus;
     }
 }
