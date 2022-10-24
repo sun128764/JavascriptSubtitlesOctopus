@@ -45,7 +45,13 @@ function isBrotliFile(url) {
         len = url.length;
     }
 
-    return url.endsWith(".br", len);
+    if (url.endsWith(".br", len)) {
+        console.warn("Support for manual brotli decompression is tentatively deprecated and "
+                + "may be removed with the next release. Instead use HTTP's Content-Encoding.")
+        return true;
+    }
+
+    return false;
 }
 
 Module = Module || {};
@@ -88,10 +94,12 @@ Module["preRun"].push(function () {
 
     self.subContent = null;
 
+    self.loadFontFile(".fallback-", self.fallbackFont);
+
     //Module["FS"].mount(Module["FS"].filesystems.IDBFS, {}, '/fonts');
     var fontFiles = self.fontFiles || [];
     for (var i = 0; i < fontFiles.length; i++) {
-        Module["FS_createPreloadedFile"]("/fonts", 'font' + i + '-' + fontFiles[i].split('/').pop(), fontFiles[i], true, true);
+        self.loadFontFile('font' + i + '-', fontFiles[i]);
     }
 });
 
@@ -105,7 +113,7 @@ Module['onRuntimeInitialized'] = function () {
     self.blendW = Module._malloc(4);
     self.blendH = Module._malloc(4);
 
-    self.octObj.initLibrary(screen.width, screen.height);
+    self.octObj.initLibrary(screen.width, screen.height, "/fonts/.fallback-" + self.fallbackFont.split('/').pop());
     self.octObj.setDropAnimations(self.dropAllAnimations);
     self.octObj.createTrack("/sub.ass");
     self.ass_track = self.octObj.track;

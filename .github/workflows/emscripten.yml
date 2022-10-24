@@ -11,13 +11,13 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - name: Cancel previous runs
-      uses: styfle/cancel-workflow-action@0.9.1
+      uses: styfle/cancel-workflow-action@0.11.0
       with:
           access_token: ${{ github.token }}
           all_but_latest: true
 
     - name: Checkout Base Repo
-      uses: actions/checkout@v2
+      uses: actions/checkout@v3
 
     - name: Prepare Submodules
       run: |
@@ -31,7 +31,7 @@ jobs:
         # Invalidate cache if submodules, patches or emscripten version changed
         key="$(find build/patches/ -type f | sort | xargs cat .gitmodules Dockerfile \
                Makefile Makefile_licence | shasum -a 256 | cut -d' ' -f1)"
-        echo "::set-output name=key::0-${key}"
+        echo "key=0-${key}" >> $GITHUB_OUTPUT
 
     - name: Ensure Cache will be newer than Checkout
       run: |
@@ -66,7 +66,7 @@ jobs:
         docker run --rm -v "${PWD}":/code -v "/tmp/emcc_lto:/emsdk/upstream/emscripten/cache/sysroot/lib/wasm32-emscripten/lto" libass/jso:latest
 
     - name: Upload Nightly Build
-      uses: actions/upload-artifact@v2
+      uses: actions/upload-artifact@v3
       if: (github.event_name == 'push' || github.event_name == 'workflow_dispatch') && github.ref == 'refs/heads/master'
       with:
         name: js
@@ -79,7 +79,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
         with:
           ref: gh-pages
 
@@ -87,7 +87,7 @@ jobs:
         run: rm -fr assets/js
 
       - name: Download nightly build
-        uses: actions/download-artifact@v2
+        uses: actions/download-artifact@v3
         with:
           name: js
           path: assets/js
@@ -97,6 +97,7 @@ jobs:
           git config --global user.email "actions@noreply.github.com"
           git config --global user.name "GitHub Action"
           git add assets/js
-          git commit -m "$(printf \
-            "Update binaries to latest nightly\n\nFrom %s" "${{ github.sha }}")"
-          git push origin gh-pages
+          (git commit -m "$(printf \
+            "Update binaries to latest nightly\n\nFrom %s" "${{ github.sha }}")" \
+           && git push origin gh-pages) \
+           || : # Ignore if nothing changed
